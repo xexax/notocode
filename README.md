@@ -8,6 +8,7 @@ Kurumsal süreç dönüşümü için tarayıcıda çalışan çalışma aracı: 
   ```bash
   python3 -m http.server 8000   # sonra http://localhost:8000
   ```
+- **iPad / iPhone (uygulama gibi):** https adresini Safari'de aç → **Paylaş → Ana Ekrana Ekle**. Tam ekran, kendi ikonuyla ve çevrimdışı çalışır; Safari'de ilk açılışta kurulum ipucu görünür. Dokunmatik hedefler büyütülmüştür, çentik/güvenli alan desteklenir.
 - **Yayınlama:** repoyu GitHub Pages ile yayınla (https). Chrome/Edge'de adres çubuğundaki "Yükle" ile masaüstü uygulaması olarak kurulur ve çevrimdışı çalışır (PWA).
 
 ## Özellikler

@@ -626,6 +626,7 @@ async function act(name, el) {
   switch (name) {
     case 'go': return go(arg);
     case 'quick': return quick();
+    case 'hideInstall': try { localStorage.setItem('dts.installHint', '1'); } catch (e) { /* */ } return $('#install') && $('#install').remove();
     case 'projects': return openProjects();
     case 'projSwitch': save(); clearTimeout(saveT); DB.list[DB.cur].data = pack(S); useProject(arg); localStorage.setItem(SAVE_KEY, JSON.stringify(DB)); closeModal(); return render();
     case 'projNew': { const n = prompt('Proje adı:', 'Yeni proje'); if (!n) return; DB.list[DB.cur].data = pack(S); newProject(n.trim()); save(); closeModal(); return render(); }
@@ -755,7 +756,19 @@ $('#file').addEventListener('change', (e) => {
 });
 window.addEventListener('beforeunload', () => stopSpeak());
 
-load(); render(); updateMic(); requestAnimationFrame(pollPad);
+function installHint() {
+  try {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    if (!ios || standalone || localStorage.getItem('dts.installHint')) return;
+    const d = document.createElement('div'); d.id = 'install'; d.className = 'show';
+    d.innerHTML = '<span>📲 Uygulama olarak kurmak için Safari\'de <b>Paylaş</b> düğmesine, sonra <b>Ana Ekrana Ekle</b>\'ye dokun.</span><button class="btn sm" data-nav data-act="hideInstall">Tamam</button>';
+    $('.content').insertBefore(d, $('#live'));
+  } catch (e) { /* yok say */ }
+}
+const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px');
+window.addEventListener('resize', setHH); window.addEventListener('orientationchange', () => setTimeout(setHH, 200));
+load(); render(); updateMic(); installHint(); setHH(); requestAnimationFrame(pollPad);
 // joystick'i otomatik yakala (bazı tarayıcılar olayı ilk tuş basımına kadar tetiklemez)
 setInterval(() => { if (padIndex == null) { const p = (navigator.getGamepads ? navigator.getGamepads() : []); const g = [...p].find(Boolean); if (g) { padIndex = g.index; $('#padChip').textContent = '🕹️ ' + g.id.slice(0, 22); $('#padChip').classList.add('on'); } } }, 1000);
 if (!S.minutes && !S.mining) setLive('Başlamak için «Örnek veriyle dene» ya da yeni bir toplantı ekle.');
