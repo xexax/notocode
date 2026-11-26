@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dönüşüm Arenası</title>
+<meta name="description" content="Joystick ve ses ile oynanan kurumsal AI dönüşüm oyunu: toplantıdan minute, process mining, To-Be tasarım, KPI ve AI ile teslimat.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand"><span class="logo">🎮</span><div><b>DÖNÜŞÜM ARENASI</b><small>Kurumsal AI dönüşüm oyunu</small></div></div>
+  <div class="rank" id="rank"></div>
+  <div class="hud">
+    <button class="btn mic" id="micBtn" data-nav data-act="mic" title="Mikrofon (X / M)">🎤 <span id="micLbl">Kapalı</span></button>
+    <button class="btn" data-nav data-act="mode" id="modeBtn" title="Komut / Dikte modu">⌨️ Komut</button>
+    <span class="chip" id="padChip">🕹️ Joystick yok</span>
+    <button class="btn" data-nav data-act="settings" title="Ayarlar">⚙️</button>
+  </div>
+</header>
+<nav id="map" aria-label="Görev haritası"></nav>
+<div id="live" aria-live="polite"></div>
+<main id="view"></main>
+<footer id="hints">
+  <span><kbd>D-Pad / Sol Çubuk</kbd> gez</span><span><kbd>A</kbd> seç</span><span><kbd>B</kbd> ana ekran</span>
+  <span><kbd>X</kbd> mikrofon</span><span><kbd>Y</kbd> sesli anlat</span><span><kbd>LB/RB</kbd> sahne</span><span><kbd>Sağ çubuk</kbd> kaydır</span>
+  <span class="kbd-alt">Klavye: ok tuşları · Enter · M · Q/E · Esc</span>
+</footer>
+<div id="toasts"></div>
+<div id="modal" hidden></div>
+<input type="file" id="file" accept=".csv,.txt,.tsv" hidden>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
