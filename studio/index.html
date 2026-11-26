@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dönüşüm Stüdyosu</title>
+<meta name="description" content="Toplantı tutanağı, process mining, hedef süreç tasarımı, plan/KPI ve AI destekli teslimat — tek çalışma alanında.">
+<meta name="theme-color" content="#1f4fd8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand"><img src="icons/icon.svg" alt="" width="30" height="30"><div><b>Dönüşüm Stüdyosu</b><small>Süreç madenciliği · tutanak · AI teslimat</small></div></div>
+  <button class="btn" id="projBtn" data-nav data-act="projects" title="Projeler">📁 <span id="projName"></span> ▾</button>
+  <div class="hud">
+    <button class="btn mic" id="micBtn" data-nav data-act="mic" title="Mikrofon (M)">🎤 <span id="micLbl">Kapalı</span></button>
+    <button class="btn" data-nav data-act="mode" id="modeBtn" title="Komut / Dikte modu">⌨️ Komut</button>
+    <span class="chip" id="padChip">🕹️ Joystick yok</span>
+    <button class="btn" data-nav data-act="settings" title="Ayarlar">⚙️ Ayarlar</button>
+  </div>
+</header>
+<div class="shell">
+  <nav id="map" aria-label="Bölümler"></nav>
+  <section class="content"><div id="live" aria-live="polite"></div><main id="view"></main></section>
+</div>
+<footer id="hints"><span>Ok tuşları/D-Pad: gez</span><span>Enter/A: seç</span><span>Esc/B: genel bakış</span><span>M/X: mikrofon</span><span>Q·E/LB·RB: bölüm</span></footer>
+<div id="toasts"></div>
+<div id="modal" hidden></div>
+<input type="file" id="file" accept=".csv,.txt,.tsv,.json" hidden>
+<script src="core.js"></script>
+<script src="app.js"></script>
+<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+</body>
+</html>
