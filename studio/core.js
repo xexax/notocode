@@ -161,9 +161,9 @@ Risk: Tedarikçi sistem entegrasyonu gecikebilir.`;
 
   /* ---------------- Toplantı minute çıkarma ---------------- */
   const UP = 'A-ZÇĞİÖŞÜ';
-  const STOP_OWNER = new Set(['Tüm', 'Bu', 'Her', 'Ekip', 'Süreç', 'Karar', 'Risk', 'Hedef', 'Toplantı', 'Önce', 'Sonra', 'Fatura', 'Talep', 'Onay', 'Ayrıca', 'Ancak', 'Ama', 'Yönetim', 'Şirket', 'Müşteri', 'Tedarikçi']);
+  const STOP_OWNER = new Set(['Ben', 'Biz', 'Katılımcılar', 'Aksiyon', 'Not', 'Konu', 'Tüm', 'Bu', 'Her', 'Ekip', 'Süreç', 'Karar', 'Risk', 'Hedef', 'Toplantı', 'Önce', 'Sonra', 'Fatura', 'Talep', 'Onay', 'Ayrıca', 'Ancak', 'Ama', 'Yönetim', 'Şirket', 'Müşteri', 'Tedarikçi']);
   const DUE_RE = /(\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\s*(?:tarihine kadar|tarihinde)?|ay sonu(?:na kadar)?|hafta sonu(?:na kadar)?|bu hafta|haftaya|yarın|pazartesi|salı|çarşamba|perşembe|cuma|Q[1-4]|\d+\s*(?:gün|hafta|ay)\s*içinde|(?:bir|iki|üç|dört|beş|on)\s*(?:gün|hafta|ay)\s*içinde)/i;
-  const ACTION_RE = /(acak|ecek|acağız|eceğiz|acaktır|ecektir|malı|meli|malıdır|melidir)\s*[.!]?\s*$|sorumlu|aksiyon/i;
+  const ACTION_RE = /(acak|ecek|acağız|eceğiz|acağım|eceğim|acaktır|ecektir|malı|meli|malıdır|melidir)\s*[.!]?\s*$|sorumlu|aksiyon/i;
   const SEQ_RE = /(önce|sonra|ardından|sonrasında|ilk olarak|son olarak|daha sonra)/gi;
 
   C.extractMinutes = function (text) {
@@ -173,8 +173,8 @@ Risk: Tedarikçi sistem entegrasyonu gecikebilir.`;
     if (tl) out.title = tl.replace(/^toplantı\s*:/i, '').trim();
     const addPerson = (name, role) => {
       name = name.trim(); if (!name || STOP_OWNER.has(name)) return;
-      const ex = out.people.find((p) => p.name === name);
-      if (ex) { if (role && !ex.role) ex.role = role; } else out.people.push({ name, role: role || '' });
+      const ex = out.people.find((p) => p.name === name || p.name.startsWith(name + ' ') || name.startsWith(p.name + ' '));
+      if (ex) { if (role && !ex.role) ex.role = role; if (name.length > ex.name.length) ex.name = name; } else out.people.push({ name, role: role || '' });
     };
     const pl = lines.find((l) => /^katılımcılar\s*:/i.test(l));
     if (pl) pl.replace(/^katılımcılar\s*:/i, '').split(/[,;]/).forEach((p) => {
@@ -185,7 +185,11 @@ Risk: Tedarikçi sistem entegrasyonu gecikebilir.`;
     const sents = body.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
     const nameRe = new RegExp('^([' + UP + '][a-zçğıöşü]+)\\s');
     const speakRe = new RegExp('([' + UP + '][a-zçğıöşü]+)\\s+(?:[^.]{0,60}?\\s)?(?:dedi|belirtti|söyledi|önerdi|bildirdi|aktardı|ifade etti)');
-    for (const s0 of sents) {
+    const spkRe = new RegExp('^([' + UP + '][a-zçğıöşü]+(?: [' + UP + '][a-zçğıöşü]+)?):\\s+(.*)$');
+    for (const s00 of sents) {
+      let speaker = ''; let s0 = s00;
+      const pm = s00.match(spkRe);
+      if (pm && !STOP_OWNER.has(pm[1])) { speaker = pm[1]; s0 = pm[2]; addPerson(speaker); }
       const s = s0.replace(/[.!]+$/, '');
       const sm = s.match(speakRe); if (sm) addPerson(sm[1]);
       // süreç adımları
@@ -206,7 +210,7 @@ Risk: Tedarikçi sistem entegrasyonu gecikebilir.`;
       if (ACTION_RE.test(s) && !/^(risk|sorun)/i.test(s)) {
         const due = (s.match(DUE_RE) || [''])[0].trim();
         const sor = s.match(new RegExp('sorumlu(?:su)?\\s*[:\\-]?\\s*([' + UP + '][a-zçğıöşü]+)'));
-        const o = owner || (sor && sor[1]) || '';
+        const o = owner || (sor && sor[1]) || speaker || '';
         if (o) addPerson(o);
         out.actions.push({ text: s, owner: o, due });
         continue;
@@ -215,6 +219,29 @@ Risk: Tedarikçi sistem entegrasyonu gecikebilir.`;
     }
     out.steps = out.steps.filter((x, i, a) => a.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i);
     return out;
+  };
+
+  /* ---------------- Teams VTT ve e-posta ---------------- */
+  C.parseVtt = function (vtt) {
+    const out = []; let last = '';
+    for (const b of String(vtt).replace(/\r/g, '').split(/\n\n+/)) {
+      if (!/-->/.test(b)) continue;
+      const body = b.split('\n').filter((l) => !/-->/.test(l) && !/^\d+$/.test(l.trim()) && !/^WEBVTT/.test(l)).join(' ');
+      const m = body.match(/<v\s+([^>]+)>([\s\S]*?)(?:<\/v>|$)/);
+      const sp = m ? m[1].trim() : '';
+      const tx = (m ? m[2] : body).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (!tx) continue;
+      if (sp && sp === last && out.length) out[out.length - 1] += ' ' + tx; else out.push((sp ? sp + ': ' : '') + tx);
+      last = sp;
+    }
+    return out.join('\n');
+  };
+  C.cleanMail = function (t) {
+    t = String(t).replace(/\r/g, '');
+    const cut = t.search(/\n(?:-{2,}\s*Original Message|From:|Kimden:|On .{5,80} wrote:|.{5,80} tarihinde .{3,80} yazdı:|_{5,})/i);
+    if (cut > 0) t = t.slice(0, cut);
+    t = t.split('\n').filter((l) => !/^\s*>/.test(l)).join('\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    return t.slice(0, 4000);
   };
 
   /* ---------------- Process mining ---------------- */

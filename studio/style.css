@@ -109,3 +109,6 @@ button,.stage-tab,.gnode,.card[data-nav]{-webkit-user-select:none;user-select:no
 @media(display-mode:standalone){#hints{display:none}body{padding-bottom:calc(16px + var(--sab))}#toasts{bottom:calc(20px + var(--sab))}}
 #install{display:none;margin:0 0 12px;padding:10px 14px;border:1px solid var(--brand);border-radius:var(--r);background:var(--panel2);align-items:center;gap:10px}
 #install.show{display:flex}#install span{flex:1}
+
+.row-btn{width:100%;justify-content:flex-start;text-align:left;align-items:flex-start;margin-bottom:6px;gap:10px}
+details summary{cursor:pointer}details ol{padding-left:22px;margin:10px 0 0}

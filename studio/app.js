@@ -126,14 +126,15 @@ function md(src) {
 /* ---------------- Üst bar ---------------- */
 function renderHud() {
   $('#projName').textContent = DB.list[DB.cur].name;
-  const items = [{ id: 'overview', ico: '🏠', name: 'Genel Bakış', sub: 'Proje durumu' }, ...STAGES];
+  const items = [{ id: 'overview', ico: '🏠', name: 'Genel Bakış', sub: 'Proje durumu' }, { id: 'sources', ico: '📬', name: 'Kaynaklar', sub: 'E-posta · toplantılar' }, ...STAGES];
+  const t = msSess(); $('#acctLbl').textContent = t ? (t.user && t.user.name ? t.user.name.split(' ')[0] : 'Bağlı') : 'Giriş yap';
   $('#map').innerHTML = items.map((s, i) => {
-    const lk = s.id !== 'overview' && !unlocked(s.id), done = s.id !== 'overview' && isDone(s.id);
-    return `<button class="stage-tab ${S.stage === s.id ? 'cur' : ''} ${done ? 'done' : ''} ${lk ? 'locked' : ''}" data-nav data-act="go" data-arg="${s.id}"><span class="ico">${s.ico}</span><span><b>${s.id === 'overview' ? '' : i + '. '}${s.name}</b><small>${s.sub}</small></span></button>`;
+    const lk = !unlocked(s.id), done = STAGES.includes(s) && isDone(s.id);
+    return `<button class="stage-tab ${S.stage === s.id ? 'cur' : ''} ${done ? 'done' : ''} ${lk ? 'locked' : ''}" data-nav data-act="go" data-arg="${s.id}"><span class="ico">${s.ico}</span><span><b>${STAGES.includes(s) ? (STAGES.indexOf(s) + 1) + '. ' : ''}${s.name}</b><small>${s.sub}</small></span></button>`;
   }).join('');
 }
 function unlocked(id) {
-  return id === 'minutes' || id === 'mining' || (id === 'tobe' && !!S.mining) || (id === 'plan' && !!S.tobe) || (id === 'deliver' && !!S.plan);
+  return id === 'minutes' || id === 'mining' || id === 'sources' || (id === 'tobe' && !!S.mining) || (id === 'plan' && !!S.tobe) || (id === 'deliver' && !!S.plan);
 }
 function isDone(id) {
   return ({ minutes: !!S.minutes, mining: !!S.mining, tobe: !!S.tobe, plan: !!S.plan, deliver: Object.keys(S.delivered).length >= 3 })[id];
@@ -151,7 +152,7 @@ function go(id) {
   beep(SFX.ok);
 }
 function step(d) {
-  const ids = ['overview', ...STAGES.map((s) => s.id)]; let i = ids.indexOf(S.stage);
+  const ids = ['overview', 'sources', ...STAGES.map((s) => s.id)]; let i = ids.indexOf(S.stage);
   for (let k = 0; k < ids.length; k++) { i = (i + d + ids.length) % ids.length; if (ids[i] === 'overview' || unlocked(ids[i])) return go(ids[i]); }
 }
 function setLive(t) { $('#live').textContent = t || ''; }
@@ -161,7 +162,7 @@ function render() {
   const lastId = document.activeElement && document.activeElement.dataset ? (document.activeElement.dataset.act || '') + (document.activeElement.dataset.arg || '') : '';
   renderHud();
   const v = $('#view');
-  v.innerHTML = ({ overview: vOverview, minutes: vMinutes, mining: vMining, tobe: vTobe, plan: vPlan, deliver: vDeliver })[S.stage]();
+  v.innerHTML = ({ overview: vOverview, sources: vSources, minutes: vMinutes, mining: vMining, tobe: vTobe, plan: vPlan, deliver: vDeliver })[S.stage]();
   if (S.stage === 'mining') drawMining();
   if (S.stage === 'tobe') drawTobe();
   if (lastId) { const el = $$('[data-nav]').find((e) => (e.dataset.act || '') + (e.dataset.arg || '') === lastId); if (el) el.focus({ preventScroll: true }); }
@@ -281,6 +282,43 @@ function vPlan() {
     <div class="bar" style="margin:8px 0"><i style="width:${Math.round(p * 100)}%"></i></div>
     <div class="row"><small>Başlangıç ${f(k.base)} → Hedef <b>${f(k.target)}</b> ${esc(k.unit)}</small><span class="sp"></span>${btn('−', 'kpi-', i, 'sm')}${btn('+', 'kpi+', i, 'sm')}</div></div>`; }).join('')}</div>
   <div class="row" style="margin-top:14px">${btn('Teslimata geç →', 'go', 'deliver', 'hot')}${btn('🔊 Planı anlat', 'narrate')}</div>`;
+}
+
+function vSources() {
+  const t = msSess(), cfg = !!S.settings.msClientId, ru = redirectUri();
+  const fmtD = (d) => d.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const now = Date.now();
+  const acct = t
+    ? `<p class="big" style="margin-top:0"><b>${esc((t.user && t.user.name) || 'Bağlı hesap')}</b> <span class="tag t-new">bağlı</span><br><small>${esc((t.user && t.user.mail) || '')}</small></p><div class="row">${btn('Çıkış yap', 'msOut')}${btn('Bağlantı ayarları', 'settings')}</div>`
+    : `<p class="mut" style="margin-top:0">İş hesabınla (Microsoft 365 / Entra ID) giriş yap; e-postaları ve takvimdeki toplantıları okuyup tutanağa dönüştür. Okuma yetkileri salt okunurdur; hiçbir şey gönderilmez veya silinmez.</p><div class="row">${btn('Microsoft ile giriş yap', 'msIn', undefined, 'primary')}${btn('Bağlantı ayarları', 'settings')}</div>${cfg ? '' : '<p class="rag-a" style="margin:8px 0 0">Önce bir Client ID gerekli — aşağıdaki kurulum adımlarına bak.</p>'}`;
+  const dis = !t ? '<p class="mut" style="margin:0">Giriş yapınca burada görünür.</p>' : '';
+  const mail = !t ? dis : `<div class="row"><input type="text" id="mailq" data-nav placeholder="Ara (örn. süreç, onay, fatura) — boşsa son e-postalar" value="${esc(mailQuery)}" style="flex:1;min-width:200px">${btn(busy === 'mail' ? 'Yükleniyor…' : 'Getir', 'mailLoad', undefined, 'primary')}</div>
+    ${MAIL.length ? `<div style="margin-top:8px">${MAIL.map((m) => `<button class="btn row-btn" data-nav data-act="mailSel" data-arg="${esc(m.id)}"><span>${SELMAIL.has(m.id) ? '☑' : '☐'}</span><span><b>${esc(m.subject || '(konusuz)')}</b> <small>— ${esc((m.from && m.from.emailAddress && m.from.emailAddress.name) || '')} · ${esc(new Date(m.receivedDateTime).toLocaleDateString('tr-TR'))}</small><br><small>${esc((m.bodyPreview || '').slice(0, 110))}</small></span></button>`).join('')}</div>
+    <div class="row" style="margin-top:10px">${btn(busy === 'import' ? 'Aktarılıyor…' : `Seçilenleri tutanağa aktar (${SELMAIL.size})`, 'mailImport', undefined, 'primary')}<span class="mut">Sadece seçtiklerin işlenir.</span></div>` : '<p class="mut" style="margin:8px 0 0">Henüz liste yok.</p>'}`;
+  const meet = !t ? dis : `<div class="row">${btn(busy === 'meet' ? 'Yükleniyor…' : 'Toplantıları getir (son 14 gün · önümüzdeki 7 gün)', 'meetLoad', undefined, 'primary')}</div>
+    ${MEET.length ? `<table style="margin-top:8px"><tr><th>Toplantı</th><th>Zaman</th><th></th></tr>${MEET.map((e, i) => {
+      const past = e.end.getTime() < now;
+      return `<tr><td><b>${esc(e.subject || '(konusuz)')}</b><br><small>${esc(e.organizer)} · ${e.attendees.length} katılımcı${e.online ? ' · çevrimiçi' : ''}</small></td><td>${fmtD(e.start)}</td><td style="text-align:right">${past && e.joinUrl ? btn(busy === 'tr' + i ? '…' : 'Transkript al', 'trans', i, 'sm') : ''}${!past && e.joinUrl ? btn('Katıl + canlı not', 'joinMeet', i, 'sm') : ''}</td></tr>`;
+    }).join('')}</table>` : '<p class="mut" style="margin:8px 0 0">Henüz liste yok.</p>'}`;
+  return `
+  <div class="page-h"><div><h2>Kaynaklar</h2><p class="mut">İş hesabından e-posta ve toplantıları içeri al; tutanağa, sonra süreç analizine dönüştür.</p></div></div>
+  <div class="grid g2">
+    <div class="card"><h3>Hesap</h3>${acct}</div>
+    <div class="card"><h3>Gizlilik</h3><p class="mut" style="margin:0">Giriş doğrudan tarayıcından Microsoft'a yapılır; bu uygulamanın kendi sunucusu yoktur. Jetonlar yalnızca bu sekmede (oturum boyunca) tutulur. E-posta ve toplantı içeriği yalnızca seçip aktardığın kısım kadar bu tarayıcıdaki projene kaydedilir. «AI ile zenginleştir» veya teslimat çıktılarını Claude ile üretirsen, ilgili metin Anthropic API'ye gider; anahtar girmezsen hiçbir şey dışarı gitmez.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>📧 E-posta</h3>${mail}</div>
+  <div class="card" style="margin-top:14px"><h3>📅 Toplantılar</h3>${meet}
+    <p class="mut" style="margin:10px 0 0">«Transkript al» için toplantıda Teams transkripsiyonu açık olmalı ve Ayarlar'da transkript izni etkin olmalı. «Katıl + canlı not» toplantıyı yeni sekmede açar ve cihaz mikrofonuyla dikte modunu başlatır.</p></div>
+  <div class="card" style="margin-top:14px"><h3>🤖 Toplantıya kendiliğinden katılan not alıcı</h3>
+    <p class="mut" style="margin:0">Bir botun toplantıya sen yokken girip ses/transkript alması (Azure Bot + Microsoft Graph Calling API) sunucu tarafı bir servis gerektirir; tarayıcıda çalışan bu uygulama bunu yapamaz. Bunun yerine Teams'in kendi transkripsiyonunu açıp toplantı sonrası buradan içe aktarman önerilir.</p></div>
+  <details class="card" style="margin-top:14px"><summary><b>Kurulum: Client ID nasıl alınır? (BT yöneticisi/sen, bir kerelik)</b></summary>
+    <ol>
+      <li><b>entra.microsoft.com</b> → Uygulama kayıtları (App registrations) → Yeni kayıt.</li>
+      <li>Desteklenen hesap türü: kendi kuruluşun (tek kiracı) veya tüm kuruluşlar.</li>
+      <li>Yeniden yönlendirme URI'si: platform <b>Tek sayfalı uygulama (SPA)</b>, değer: <code>${esc(ru)}</code></li>
+      <li>API izinleri → Microsoft Graph → <b>Temsilci (Delegated)</b>: <code>User.Read</code>, <code>Mail.Read</code>, <code>Calendars.Read</code>, <code>OnlineMeetings.Read</code> ve transkript için <code>OnlineMeetingTranscript.Read.All</code> (genellikle yönetici onayı gerekir).</li>
+      <li>Genel Bakış sayfasındaki <b>Uygulama (istemci) kimliği</b>ni kopyala → Ayarlar → Microsoft Client ID. Kiracı kimliği boşsa <code>organizations</code> kullanılır.</li>
+    </ol></details>`;
 }
 
 const ARTS = [
@@ -541,6 +579,11 @@ function openSettings() {
     <label>Anthropic API anahtarı (opsiyonel — AI çıktıları için)</label><input type="password" id="setKey" data-nav value="${esc(S.settings.key)}" placeholder="sk-ant-…" autocomplete="off">
     <p class="mut">Anahtar yalnızca bu tarayıcıda (localStorage) saklanır ve doğrudan Anthropic API'ye gider. Paylaşılan bilgisayarlarda kullanmayın.</p>
     <label>Model</label><input type="text" id="setModel" data-nav value="${esc(S.settings.model)}">
+    <h3 style="margin-top:16px">Microsoft 365 girişi</h3>
+    <label>Client ID (uygulama kimliği)</label><input type="text" id="setMsId" data-nav value="${esc(S.settings.msClientId || '')}" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off">
+    <label>Kiracı (tenant) — boşsa «organizations»</label><input type="text" id="setMsTen" data-nav value="${esc(S.settings.msTenant || '')}" placeholder="organizations veya kiracı kimliği" autocomplete="off">
+    <div class="row" style="margin-top:8px"><button class="btn ${S.settings.msTranscripts ? 'primary' : ''}" data-nav data-act="setTr">📝 Toplantı transkriptleri: ${S.settings.msTranscripts ? 'açık' : 'kapalı'}</button></div>
+    <p class="mut" style="margin:6px 0 0">Transkript izni genellikle yönetici onayı ister; kapalıyken giriş yalnızca e-posta ve takvim izinleriyle yapılır. Değiştirince yeniden giriş yap. Yönlendirme URI'si: <code>${esc(redirectUri())}</code></p>
     <div class="row" style="margin:12px 0"><button class="btn ${S.settings.narrator ? 'primary' : ''}" data-nav data-act="setNarr">🔊 Sesli anlatıcı: ${S.settings.narrator ? 'açık' : 'kapalı'}</button><button class="btn ${S.settings.sfx ? 'primary' : ''}" data-nav data-act="setSfx">🔔 Gezinme sesi: ${S.settings.sfx ? 'açık' : 'kapalı'}</button></div>
     <div class="row">${btn('Kaydet', 'saveSet', undefined, 'primary')}${btn('Kapat', 'closeModal')}</div></div>`;
   $('#setKey').focus();
@@ -587,6 +630,7 @@ function primary() {
 function voiceCommand(l) {
   const has = (re) => re.test(l);
   if (has(/ana (ekran|sayfa|menü)|genel bakış|başa dön/)) return go('overview');
+  if (has(/e-?posta|mail|kaynak|takvim|hesap/)) return go('sources');
   if (has(/toplantı/) && !has(/başlat|analiz/)) return go('minutes');
   if (has(/süreç analiz|süreç radar|radar|mining|madencilik|process/)) return go('mining');
   if (has(/hedef süreç|tasarım|olması gereken|to be|tu bi/)) return go('tobe');
@@ -620,6 +664,130 @@ function narrate() {
   const was = S.settings.narrator; S.settings.narrator = true; speak(txt); S.settings.narrator = was;
 }
 
+/* ---------------- Microsoft 365 (Entra ID · OAuth2 kod + PKCE, sunucusuz) ---------------- */
+let MAIL = [], MEET = [], busy = '', mailQuery = '';
+const SELMAIL = new Set();
+function readSet() {
+  const g = (id) => $('#' + id) ? $('#' + id).value.trim() : null;
+  if (g('setKey') !== null) { S.settings.key = g('setKey'); S.settings.model = g('setModel') || 'claude-sonnet-5-5'; S.settings.msClientId = g('setMsId'); S.settings.msTenant = g('setMsTen'); }
+}
+const redirectUri = () => location.origin + location.pathname;
+const msTenant = () => (S.settings.msTenant || 'organizations').trim();
+const msScopes = () => ['openid', 'profile', 'offline_access', 'User.Read', 'Mail.Read', 'Calendars.Read', 'OnlineMeetings.Read', ...(S.settings.msTranscripts ? ['OnlineMeetingTranscript.Read.All'] : [])].join(' ');
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const rnd = (n) => b64u(crypto.getRandomValues(new Uint8Array(n)));
+function msSess() { try { return JSON.parse(sessionStorage.getItem('dts.ms') || 'null'); } catch (e) { return null; } }
+const msSet = (o) => sessionStorage.setItem('dts.ms', JSON.stringify(o));
+async function msSignIn() {
+  if (!S.settings.msClientId) { toast('Önce Ayarlar\'dan Client ID gir'); return openSettings(); }
+  if (!window.isSecureContext || location.protocol === 'file:') return toast('Giriş için uygulamayı https (veya localhost) adresinden aç');
+  const verifier = rnd(48), state = rnd(16);
+  const challenge = b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  sessionStorage.setItem('dts.ms.pkce', JSON.stringify({ verifier, state }));
+  save(); clearTimeout(saveT); try { DB.list[DB.cur].data = pack(S); localStorage.setItem(SAVE_KEY, JSON.stringify(DB)); } catch (e) { /* */ }
+  const q = new URLSearchParams({ client_id: S.settings.msClientId, response_type: 'code', redirect_uri: redirectUri(), response_mode: 'query', scope: msScopes(), state, code_challenge: challenge, code_challenge_method: 'S256', prompt: 'select_account' });
+  location.href = `https://login.microsoftonline.com/${msTenant()}/oauth2/v2.0/authorize?` + q;
+}
+async function msTokenReq(body) {
+  const r = await fetch(`https://login.microsoftonline.com/${msTenant()}/oauth2/v2.0/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error_description || j.error || ('HTTP ' + r.status));
+  return { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
+}
+async function msHandleRedirect() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('code') && !q.has('error')) return false;
+  const pk = JSON.parse(sessionStorage.getItem('dts.ms.pkce') || 'null');
+  history.replaceState(null, '', location.pathname);
+  if (q.has('error')) { toast('Giriş hatası: ' + (q.get('error_description') || q.get('error')).slice(0, 180)); S.stage = 'sources'; return true; }
+  if (!pk || pk.state !== q.get('state')) { toast('Giriş doğrulanamadı (state uyuşmuyor)'); return true; }
+  sessionStorage.removeItem('dts.ms.pkce');
+  try {
+    const t = await msTokenReq({ client_id: S.settings.msClientId, grant_type: 'authorization_code', code: q.get('code'), redirect_uri: redirectUri(), code_verifier: pk.verifier, scope: msScopes() });
+    msSet(t);
+    const me = await gfetch('/me?$select=displayName,mail,userPrincipalName');
+    msSet({ ...msSess(), user: { name: me.displayName, mail: me.mail || me.userPrincipalName } });
+    toast('Hesaba giriş yapıldı');
+  } catch (e) { toast('Giriş tamamlanamadı: ' + e.message); }
+  S.stage = 'sources'; return true;
+}
+async function msAccess() {
+  const t = msSess(); if (!t) throw new Error('Giriş yapılmadı');
+  if (t.exp - 60000 > Date.now()) return t.access;
+  if (!t.refresh) { msSignOut(true); throw new Error('Oturum süresi doldu, tekrar giriş yap'); }
+  try {
+    const n = await msTokenReq({ client_id: S.settings.msClientId, grant_type: 'refresh_token', refresh_token: t.refresh, scope: msScopes() });
+    msSet({ ...n, refresh: n.refresh || t.refresh, user: t.user }); return n.access;
+  } catch (e) { msSignOut(true); throw new Error('Oturum yenilenemedi, tekrar giriş yap'); }
+}
+async function gfetch(path, o) {
+  o = o || {}; const tok = await msAccess();
+  const r = await fetch(path.startsWith('http') ? path : 'https://graph.microsoft.com/v1.0' + path, { ...o, headers: { Authorization: 'Bearer ' + tok, ...(o.headers || {}) } });
+  if (r.status === 403) throw new Error('Yetki yok (403) — bu izin için yönetici onayı gerekebilir');
+  if (r.status === 404) throw new Error('Bulunamadı (404)');
+  if (!r.ok) throw new Error('Microsoft Graph ' + r.status);
+  return (r.headers.get('content-type') || '').includes('json') ? r.json() : r.text();
+}
+function msSignOut(silent) {
+  sessionStorage.removeItem('dts.ms'); MAIL = []; MEET = []; SELMAIL.clear(); busy = '';
+  if (!silent) toast('Çıkış yapıldı'); render();
+}
+const TXT = { Prefer: 'outlook.body-content-type="text"' };
+async function loadMail() {
+  mailQuery = ($('#mailq') ? $('#mailq').value : mailQuery).trim(); busy = 'mail'; render();
+  try {
+    const sel = '$top=25&$select=id,subject,from,receivedDateTime,bodyPreview';
+    const url = '/me/messages?' + sel + (mailQuery ? '&$search=' + encodeURIComponent('"' + mailQuery.replace(/"/g, '') + '"') : '&$orderby=receivedDateTime desc');
+    MAIL = (await gfetch(url, { headers: { ...TXT, ConsistencyLevel: 'eventual' } })).value || [];
+    if (!MAIL.length) toast('E-posta bulunamadı');
+  } catch (e) { toast('E-posta alınamadı: ' + e.message); }
+  busy = ''; render();
+}
+async function importMail() {
+  if (!SELMAIL.size) return toast('Önce e-posta seç');
+  busy = 'import'; render();
+  try {
+    const out = [];
+    for (const id of SELMAIL) {
+      const m = await gfetch('/me/messages/' + encodeURIComponent(id) + '?$select=subject,from,receivedDateTime,body', { headers: TXT });
+      const from = (m.from && m.from.emailAddress && m.from.emailAddress.name) || '';
+      out.push(`E-posta: ${m.subject || '(konusuz)'} — ${from}, ${new Date(m.receivedDateTime).toLocaleDateString('tr-TR')}\n` + K.cleanMail((m.body && m.body.content) || ''));
+    }
+    S.transcript = (S.transcript ? S.transcript.trimEnd() + '\n\n' : '') + out.join('\n\n');
+    toast(SELMAIL.size + ' e-posta tutanak metnine eklendi'); SELMAIL.clear(); busy = ''; save(); go('minutes');
+  } catch (e) { busy = ''; toast('Aktarılamadı: ' + e.message); render(); }
+}
+async function loadMeetings() {
+  busy = 'meet'; render();
+  try {
+    const a = new Date(Date.now() - 14 * 864e5).toISOString(), b = new Date(Date.now() + 7 * 864e5).toISOString();
+    const j = await gfetch(`/me/calendarView?startDateTime=${a}&endDateTime=${b}&$top=50&$orderby=start/dateTime desc&$select=subject,start,end,isOnlineMeeting,onlineMeeting,attendees,organizer`, { headers: { Prefer: 'outlook.timezone="UTC"' } });
+    MEET = (j.value || []).map((e) => ({
+      id: e.id, subject: e.subject, start: new Date(e.start.dateTime + 'Z'), end: new Date(e.end.dateTime + 'Z'), online: !!e.isOnlineMeeting,
+      joinUrl: (e.onlineMeeting && e.onlineMeeting.joinUrl) || '', attendees: (e.attendees || []).map((x) => x.emailAddress && x.emailAddress.name).filter(Boolean),
+      organizer: (e.organizer && e.organizer.emailAddress && e.organizer.emailAddress.name) || ''
+    }));
+    if (!MEET.length) toast('Bu aralıkta toplantı yok');
+  } catch (e) { toast('Toplantılar alınamadı: ' + e.message); }
+  busy = ''; render();
+}
+async function importTranscript(i) {
+  const ev = MEET[i];
+  if (!S.settings.msTranscripts) return toast('Ayarlar\'da «Toplantı transkriptleri» açık olmalı (yönetici onayı gerekebilir); sonra yeniden giriş yap');
+  busy = 'tr' + i; render();
+  try {
+    const m = await gfetch('/me/onlineMeetings?$filter=' + encodeURIComponent(`JoinWebUrl eq '${ev.joinUrl}'`));
+    const mid = m.value && m.value[0] && m.value[0].id; if (!mid) throw new Error('Toplantı kaydı bulunamadı (organizatör sen olmayabilirsin)');
+    const t = await gfetch(`/me/onlineMeetings/${mid}/transcripts`);
+    const tr = (t.value || []).sort((x, y) => new Date(y.createdDateTime) - new Date(x.createdDateTime))[0];
+    if (!tr) throw new Error('Bu toplantı için transkript yok (transkripsiyon açık değildi veya henüz hazır değil)');
+    const text = K.parseVtt(await gfetch(`/me/onlineMeetings/${mid}/transcripts/${tr.id}/content?$format=text/vtt`));
+    if (!text) throw new Error('Transkript boş');
+    S.transcript = (S.transcript ? S.transcript.trimEnd() + '\n\n' : '') + `Toplantı: ${ev.subject}\nKatılımcılar: ${ev.attendees.join(', ')}\n` + text;
+    toast('Transkript tutanak metnine eklendi'); busy = ''; save(); go('minutes');
+  } catch (e) { busy = ''; toast('Transkript alınamadı: ' + e.message); render(); }
+}
+
 /* ---------------- Eylem dağıtıcı ---------------- */
 async function act(name, el) {
   const arg = el && el.dataset ? el.dataset.arg : undefined;
@@ -646,9 +814,19 @@ async function act(name, el) {
     case 'mode': return setMode(micMode === 'dictate' ? 'command' : 'dictate');
     case 'settings': return openSettings();
     case 'closeModal': return closeModal();
-    case 'saveSet': S.settings.key = $('#setKey').value.trim(); S.settings.model = $('#setModel').value.trim() || 'claude-sonnet-5-5'; save(); closeModal(); render(); return toast('Ayarlar kaydedildi');
-    case 'setNarr': S.settings.narrator = !S.settings.narrator; { const k = $('#setKey').value, mo = $('#setModel').value; S.settings.key = k; S.settings.model = mo; } save(); return openSettings();
-    case 'setSfx': S.settings.sfx = !S.settings.sfx; { const k = $('#setKey').value, mo = $('#setModel').value; S.settings.key = k; S.settings.model = mo; } save(); return openSettings();
+    case 'saveSet': readSet(); save(); closeModal(); render(); return toast('Ayarlar kaydedildi');
+    case 'setNarr': readSet(); S.settings.narrator = !S.settings.narrator; save(); return openSettings();
+    case 'setSfx': readSet(); S.settings.sfx = !S.settings.sfx; save(); return openSettings();
+    case 'setTr': readSet(); S.settings.msTranscripts = !S.settings.msTranscripts; save(); return openSettings();
+    case 'goSources': return go('sources');
+    case 'msIn': return msSignIn();
+    case 'msOut': return msSignOut();
+    case 'mailLoad': return loadMail();
+    case 'mailSel': if (SELMAIL.has(arg)) SELMAIL.delete(arg); else SELMAIL.add(arg); return render();
+    case 'mailImport': return importMail();
+    case 'meetLoad': return loadMeetings();
+    case 'trans': return importTranscript(+arg);
+    case 'joinMeet': { const ev = MEET[+arg]; window.open(ev.joinUrl, '_blank', 'noopener'); setMode('dictate'); if (!listening) micToggle(); return toast('Toplantı yeni sekmede açıldı. Canlı not mikrofonla alınır; konuşmayı cihaz hoparlöründen duyabilmesi için sesi açık tut.'); }
     case 'extract': return extractLocal();
     case 'aiExtract': return aiExtract();
     case 'sampleText': S.transcript = K.DEMO_TRANSCRIPT; save(); return render();
@@ -768,9 +946,10 @@ function installHint() {
 }
 const setHH = () => document.documentElement.style.setProperty('--hh', $('#top').offsetHeight + 'px');
 window.addEventListener('resize', setHH); window.addEventListener('orientationchange', () => setTimeout(setHH, 200));
-load(); render(); updateMic(); installHint(); setHH(); requestAnimationFrame(pollPad);
+load(); render(); updateMic(); installHint(); setHH();
+msHandleRedirect().then((h) => { if (h) { save(); render(); } }); requestAnimationFrame(pollPad);
 // joystick'i otomatik yakala (bazı tarayıcılar olayı ilk tuş basımına kadar tetiklemez)
 setInterval(() => { if (padIndex == null) { const p = (navigator.getGamepads ? navigator.getGamepads() : []); const g = [...p].find(Boolean); if (g) { padIndex = g.index; $('#padChip').textContent = '🕹️ ' + g.id.slice(0, 22); $('#padChip').classList.add('on'); } } }, 1000);
 if (!S.minutes && !S.mining) setLive('Başlamak için «Örnek veriyle dene» ya da yeni bir toplantı ekle.');
-window.__arena = { get S() { return S; }, act, navMove, voiceCommand, onSpeech };
+window.__arena = { get S() { return S; }, get MAIL() { return MAIL; }, get MEET() { return MEET; }, act, navMove, voiceCommand, onSpeech };
 })();
