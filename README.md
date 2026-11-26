@@ -11,6 +11,13 @@ Kurumsal süreç dönüşümü için tarayıcıda çalışan çalışma aracı: 
 - **iPad / iPhone (uygulama gibi):** https adresini Safari'de aç → **Paylaş → Ana Ekrana Ekle**. Tam ekran, kendi ikonuyla ve çevrimdışı çalışır; Safari'de ilk açılışta kurulum ipucu görünür. Dokunmatik hedefler büyütülmüştür, çentik/güvenli alan desteklenir.
 - **Yayınlama:** repoyu GitHub Pages ile yayınla (https). Chrome/Edge'de adres çubuğundaki "Yükle" ile masaüstü uygulaması olarak kurulur ve çevrimdışı çalışır (PWA).
 
+## İş hesabı ile giriş (Microsoft 365) — Kaynaklar
+**Kaynaklar** sayfasından Microsoft 365 / Entra ID ile (SSO) giriş yapılır; sunucu yoktur, giriş tarayıcıdan OAuth2 kod + PKCE ile doğrudan Microsoft'a yapılır. Yetkiler salt okunurdur (hiçbir şey gönderilmez/silinmez).
+- **E-posta:** ara veya son e-postaları getir, seçtiklerini tutanak metnine aktar (alıntı/imza temizlenir).
+- **Toplantılar:** son 14 gün / önümüzdeki 7 gün takvimi. Geçmiş Teams toplantıları için **transkript al** (VTT → konuşmacılı metin → tutanak). Gelecek toplantı için **Katıl + canlı not**: toplantıyı açar, cihaz mikrofonuyla dikte başlatır.
+- **Kurulum (bir kerelik):** Entra yönetim merkezinde uygulama kaydı → platform *SPA*, yönlendirme URI'si = uygulamanın adresi (örn. `https://notocode.com/studio/`) → Graph *delegated* izinleri `User.Read, Mail.Read, Calendars.Read, OnlineMeetings.Read` (+ transkript için `OnlineMeetingTranscript.Read.All`, genelde yönetici onayı) → Client ID'yi Ayarlar'a gir. Adımlar uygulama içinde de anlatılır.
+- **Sınır:** Toplantıya *kendiliğinden* katılıp kayıt alan bot (Azure Bot + Graph Calling API) sunucu servisi gerektirir ve dahil değildir; Teams transkripsiyonunu açıp toplantı sonrası içe aktarmak önerilir. Giriş yalnızca https/localhost adresinde çalışır (dosyadan açılışta çalışmaz).
+
 ## Özellikler
 1. **Toplantılar** — metni yapıştır veya mikrofonla dikte et → katılımcılar, anlatılan süreç adımları, kararlar, aksiyonlar (sahip + termin), riskler, hedefler. İsteğe bağlı Claude ile zenginleştirme.
 2. **Süreç Analizi** — event log CSV (`vaka_id;aktivite;zaman;kaynak`) → süreç haritası, varyantlar, darboğaz, rework, devir sayısı, çevrim süresi (ort./medyan/P90) ve **conformance** (toplantıda anlatılan ↔ gerçekleşen).
